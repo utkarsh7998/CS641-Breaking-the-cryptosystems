@@ -1,0 +1,9 @@
+PlainText Generation (generates plaintexts.txt file)
+CipherText Generation (generates out.sh file)
+Command.sh (output.txt then process gives ciphertexts.txt)
+CipherText Processing (outputs binaryciphertexts and then we process it to get binciphertexts)
+Sixth Round Differential Cryptanalysis(outputs eop,sip,sop)
+Extract Sbox Keys (we get keys corresponding to S-Boxes 1,2,5,6,7,8)
+Generate Possible 56Bit Keys(outputs possible_keys.txt that contains many possible keys)
+BruteForce Keys (Gives us the final 56-bit key)
+decryptDES1.cpp and decryptDES2.cpp gives the ascii values for the decrypted key

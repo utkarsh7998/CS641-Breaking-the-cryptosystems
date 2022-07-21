@@ -1,0 +1,291 @@
+We first needed to retrieve the magic wand from the bottom of the river. Then we went back and freed the spirit in level 3. After coming back to first screen of level 4, we typed ‘read’, read a few hints by the spirit from the glass panel and typed ‘password’ as was instructed in the message. We then got the ciphertext - ‘nhtkjqjupqholpqflhmnlsjrhfkjitnt’. We had to decrypt this ciphertext to cross level 4.
+
+The screen had several hints of the cipher at Level 4 being encrypted using DES. It was mentioned that it can be 4, 6 or 10-round DES. Since, 4-round DES is easy to break and 10-round DES will be quite difficult to break, also, the spirit says, "but this one surely is not 10- round..." which makes it being 10-round DES even less likely. Hence we went ahead with 6-round and tried deciphering the password by breaking down 6-round DES with the code provided in des.txt, thinking that if this did not work we could later apply the same approach for 4-round DES.
+
+We used chosen-plaintext attack to break the 6-round DES. In this attack model, for cryptanalysis the attacker creates samples of plaintexts, gets the sender to encrypt them and then uses the obtained pairs of plaintexts and ciphertexts to find the key used for encryption.
+
+IP(M) - This is applied on the plaintext M that is to be encrypted. 
+IP_INV (M) - This is applied after all 6 rounds of DES are done on message M.
+E (M) - Expand 32-bits of text M to 48-bits.
+P (M) - This step permutes the 32-bit input M. 
+S - There are 8 S-boxes. Each S-box has 6-bit input and a 4-bit output.
+PC1 - Key permutation that maps 64 bits of key to 56 bits and removes the parity bits
+Shift - Shift that is performed on the key obtained as output of PC1
+PC2 - Key permutation that maps 56 bits of Shift’s output to 48 bits 
+
+\textbf{Methodology:}Methodology:
+
+- We perform differential cryptanalysis using two 3-round characteristics and used chosen-plaintext attack for cryptanalysis of 6-round DES. The characteristics used are 40080000 04000000 and 00200008 00000400.
+
+- It was mentioned that one byte consists of 2 characters, therefore 4 bits are used to represent one character. Using 4 bits we can only represent 16 characters, hence, we tried several plaintexts and evaluated the corresponding ciphertexts to identify which 16 characters are used in the game. After analysing the ciphertexts we inferred that alphabets f to u are used in the game. 
+Therefore, we proceeded by mapping letters f-u to 0-15 respectively:
+ {f : 0000, g : 0001, h: 0010, i : 0011, j : 0100, k : 0101, l : 0110, m : 0111, n: 1000, o : 1001, p : 1010, q : 1011, r : 1100, s : 1101, t : 1110, u : 1111}
+
+- The input and output size of one DES block is 64 bits i.e. 8 bytes (block size) which means 16 letters. Therefore, we decided to work on plaintexts of size 16 letters.
+
+\textbf{Step 1: Generation of Plaintext Pairs}Step 1: Generation of Plaintext Pairs
+The differential characteristic \textit{40 08 00 00 04 00 00 00}40 08 00 00 04 00 00 00 with probability 1/161/16 and \textit{00 20 00 08 00 00 04 00}00 20 00 08 00 00 04 00 with probability 1/161/16 are used. We generated 1000 pairs of plaintexts and ciphertexts corresponding to each characteristic to break 6-round DES. The first 1000 plaintext pairs are generated such that their XOR was \textit{00 00 80 10 00 00 40 00}00 00 80 10 00 00 40 00, which is obtained by applying inverse initial permutation on the characteristic \textit{40 08 00 00 04 00 00 00}40 08 00 00 04 00 00 00 and another 1000 plaintext pairs such that their XOR was \textit{00 00 08 01 00 10 00 00}00 00 08 01 00 10 00 00, which is obtained by applying inverse initial permutation on the characteristic \textit{00 20 00 08 00 00 04 00}00 20 00 08 00 00 04 00. These inputs are stored in \textit{plaintexts1.txt}plaintexts1.txt and \textit{plaintexts2.txt}plaintexts2.txt respectively. The code for generation of plaintext pairs is in generate_inputs.ipynb.
+
+\textbf{Step 2: Obtaining Ciphertexts corresponding to the generated Plaintexts}Step 2: Obtaining Ciphertexts corresponding to the generated Plaintexts
+To automate collection of ciphertexts corresponding to the plaintexts, we used Python’s pexpect to establish connection to the server using valid credentials. We used \textit{server1.py}server1.py to generate the  ciphertexts for the plaintexts stored in \textit{plaintexts1.txt}plaintexts1.txt and \textit{server2.py}server2.py to generate the  ciphertexts for the plaintexts stored in \textit{plaintexts2.txt}plaintexts2.txt. These ciphertexts are stored in \textit{ciphertexts1.txt}ciphertexts1.txt and \textit{ciphertexts2.txt}ciphertexts2.txt respectively. 
+
+\textbf{Step 3: Finding the key bits of round key K6 }Step 3: Finding the key bits of round key K6 
+Steps 3.1 to 3.4 were carried out for the ciphertexts obtained corresponding to each of the two characteristics. 
+
+- \textit{3.1}3.1 : We used the mapping of characters defined above to convert the obtained ciphertext to binary and then, we used \textit{CryptAnalysis.ipynb}CryptAnalysis.ipynb to apply reverse final permutation on these binary ciphertexts to get (L_6R_6)(L 
+6
+​	
+ R 
+6
+​	
+ ) and (L'_6R'_6) ,(L 
+6
+′
+​	
+ R 
+6
+′
+​	
+ ), which is output of the 6^{th}6 
+th
+  round of DES. We know that, R_{5} = L_{6}R 
+5
+​	
+ =L 
+6
+​	
+ , therefore using the values R_{5} \text{ and } R'_{5}R 
+5
+​	
+  and R 
+5
+′
+​	
+ , we computed output of Expansion box and input XOR of S-boxes for 6^{th}6 
+th
+  round. 
+
+- \textit{3.2}3.2 : For the first characteristic mentioned above, L_5 = 04 00 00 00L 
+5
+​	
+ =04000000 and for the second characteristic L_{5} = 00 00 04 00L 
+5
+​	
+ =00000400. We found output of permutation box by performing L_5 \oplus (R_6 \oplus R'_6)L 
+5
+​	
+ ⊕(R 
+6
+​	
+ ⊕R 
+6
+′
+​	
+ ), then we applied inverse permutation on this value to obtain output XOR of S-boxes for 6^{th}6 
+th
+  round.
+
+- \textit{3.3}3.3 : Let E\left(R_{5}\right)=\alpha_{1} \alpha_{2} \cdots \alpha_{8} \text{ and } E\left(R_{5}^{\prime}\right)=\alpha_{1}^{\prime} \alpha_{2}^{\prime} \cdots \alpha_{8}^{\prime}E(R 
+5
+​	
+ )=α 
+1
+​	
+ α 
+2
+​	
+ ⋯α 
+8
+​	
+  and E(R 
+5
+′
+​	
+ )=α 
+1
+′
+​	
+ α 
+2
+′
+​	
+ ⋯α 
+8
+′
+​	
+  and \beta_{i}=\alpha_{i} \oplus k_{6, i} β 
+i
+​	
+ =α 
+i
+​	
+ ⊕k 
+6,i
+​	
+  and \beta_{i}^{\prime}=\alpha_{i}^{\prime} \oplus k_{6, i}, \text{where }\left|\alpha_{i}\right|=6=\left|\alpha_{i}^{\prime}\right| \text{ and } k_{6}=k_{6,1} k_{6,2} \cdots k_{6,8}β 
+i
+′
+​	
+ =α 
+i
+′
+​	
+ ⊕k 
+6,i
+​	
+ ,where ∣α 
+i
+​	
+ ∣=6=∣α 
+i
+′
+​	
+ ∣ and k 
+6
+​	
+ =k 
+6,1
+​	
+ k 
+6,2
+​	
+ ⋯k 
+6,8
+​	
+ . At this point, we know \alpha_{i}, \alpha^{\prime}_{i}, \beta_{i} \oplus \beta^{\prime}_{i} \text{ and } \gamma_{i} \oplus \gamma^{\prime}_{i} α 
+i
+​	
+ ,α 
+i
+′
+​	
+ ,β 
+i
+​	
+ ⊕β 
+i
+′
+​	
+  and γ 
+i
+​	
+ ⊕γ 
+i
+′
+​	
+ .  We created a 8 * 648∗64 key matrix to store the number of times a key k \in [1, 64]k∈[1,64] satisfies the possibility of being a key to S_iS 
+i
+​	
+  box, where i \in [1,8]i∈[1,8] . 
+
+- \textit{3.4}3.4 : We computed the set X_i = { (\beta, \beta^{\prime}) | \beta \oplus \beta^{\prime} =  \beta_i \oplus \beta^{\prime}_i \text{ and } S(\beta) \oplus S(\beta^{\prime}) = \gamma_i \oplus \gamma^{\prime}_i }X 
+i
+​	
+ =(β,β 
+′
+ )∣β⊕β 
+′
+ =β 
+i
+​	
+ ⊕β 
+i
+′
+​	
+  and S(β)⊕S(β 
+′
+ )=γ 
+i
+​	
+ ⊕γ 
+i
+′
+​	
+ . 
+Then, we found the key k, such that  \alpha_i \oplus k = \beta \text{ and } (\beta, \beta^{\prime}) \in X_i \text{ for some } \beta^{\prime}α 
+i
+​	
+ ⊕k=β and (β,β 
+′
+ )∈X 
+i
+​	
+  for some β 
+′
+ . For all the keys k which satisfied this condition for S_iS 
+i
+​	
+  box, we incremented their count in the key matrix i.e. key_matrix[i][k] was incremented.
+
+- After performing the above analysis to find the keys, we obtained the following results for characteristic 40 08 00 00 04 00 00 004008000004000000:
+
+S-box      Key       Max_Key_frequency        Mean_Key_frequency
+   S1         4545                   132132                             6868
+   S2         5151                  293293                             7777
+   S3         3737                  128128                             6767
+   S4          77                   114114                             6969
+   S5         2323                  136136                             6767
+   S6         5252                  292292                             7777
+   S7         2828                  175175                             7575
+   S8         5454                  175175                             6969
+
+For this characteristic, in round 4, XOR will be zero for S2, S5, S6, S7 and S8. Therefore, in round 6 these S-boxes will give the corresponding key bits of K_6K 
+6
+​	
+ . Also, it can be observed that a significant difference is seen in the maximum key frequency and mean key frequency for these S-boxes which further assures of these key values being correct. We proceeded by taking the key bits for S2, S5, S6, S7 and S8 boxes as 51, 23, 52, 28 and 54 respectively. 
+
+
+- The above analysis gave the following results for characteristic 00 20 00 08 00 00 04 000020000800000400:
+
+S-box      Key       Max_Key_frequency        Mean_Key_frequency
+   S1         4545              152152                                 7070
+   S2         5151             170170                                 6666
+   S3         3737             124124                                 6565
+   S4          77               297297                                7777
+   S5         2323             146146                                 6969
+   S6         5252             279279                                 7676
+   S7         2828             116116                                 6969
+   S8         5454             112112                                 6868
+
+For this characteristic, in round 4, XOR will be zero for S1, S2, S4, S5 and S6. Therefore, in round 6 these S-boxes will give the corresponding key bits of K_6K 
+6
+​	
+ . Also, it can be observed that a significant difference is seen in the maximum key frequency and mean key frequency for these S-boxes. We proceeded by taking the key bits for S1, S2, S4, S5 and S6 boxes as 45, 51, 7,23 and 52 respectively. 
+
+Both the characteristics have S2, S5 and S6 as common S-boxes and we obtained same key values for these three S-boxes which further verified that our computations so far are correct.
+
+Therefore, we proceeded by taking key values for S1, S2, S4, S5, S6, S7 and S8 as 45, 51, 7, 23, 52, 28 and 54 for round key K_6K 
+6
+​	
+ . Thus, at this point we know 42 bits of the 56 bit key.
+
+\textbf{Step 4: Find the Actual Key from 42 known bits }Step 4: Find the Actual Key from 42 known bits 
+Next, we applied key scheduling algorithm to obtain the actual positions of these known 42 bits in the 56 bit key and obtained the following result:
+
+X11XX1XX01011X100XX11X11000X1010010X11110000X11X1101X011   (Master Key)
+here X denotes unknown bits.
+
+- At this point we have 14 unknown bits and for these 14 unknown bits of DES key, we iterate through all 2^{14}2 
+14
+  possible permutations of the key to find the correct key. We took plaintext= ffffffff ffffffff and the corresponding ciphertext= nuljnlif npfklkup and performed 6 round DES encryption. The key which encrypts this plaintext to produce the correct ciphertext is the final key. From this step, we obtained the following key which satisfied the above condition:
+\textbf{Actual 56 Bit Key = 01101110010111100111101100001010010011110000011011011011}Actual 56 Bit Key = 01101110010111100111101100001010010011110000011011011011
+
+After obtaining the 56 bit key, we found the 48 bit round key for each round.
+ROUND                                        KEY IN BINARY                                             
+Round 1         11101100 01001111 00000111 01010110 11110111 00100100    
+Round 2        01101111 00110111 01100010 00011100 11011000 01001111    
+Round 3        11101010 11010100 11101101 01000110 11110100 11110100       
+Round 4        11011001 11000011 01011010 10101001 10101101 11101001   
+Round 5        00100100 11011011 10111011 10101010 11011110 00010011
+Round 6        10110111 00111001 01000111 01011111 01000111 00110110 
+
+\textbf{Step 5: Decryption of Password}Step 5: Decryption of Password
+-The ciphertext corresponding to our password is “nhtkjqjupqholpqflhmnlsjrhfkjitnt” and therefore to obtain the password we performed decryption on this ciphertext. This ciphertext consists of 32 characters. Since, each character is represented by 4 bits, so this is 128 bit string, that is, 2 blocks of DES ciphertext. As per our mapping this is {130, 229, 75, 79, 171, 41, 106, 176, 98, 120, 109, 76, 32, 84, 62, 142}
+
+- Now that we have our key, we perform decryption on this ciphertext by considering 16 characters (=64 bits)  at a time using \textit{decrypt.cpp}decrypt.cpp, which uses decryption function of DES implementation for 6 rounds. 
+
+-The plaintext obtained is - owtveaeekc000000. We removed the zeroes as they must have been used for padding.
+
+- We entered the plaintext ‘owtveaeekc’ in the game and were directed to the next level. Finally, this was our password!
+
+\textbf{References}References:  https://www.geeksforgeeks.org/data-encryption-standard-des-set-1/
